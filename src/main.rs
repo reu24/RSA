@@ -8,7 +8,7 @@ const MIN_PRIME: i16 = 46; // ceil(sqrt(2048))
 // RSA 2048 implementation :)
 fn main() {
     loop {
-        let command = get_input("Command [keygen, encode, decode]");
+        let command = get_input("\n\nCommand [keygen, encode, decode]");
 
         if (command == "keygen") {
             keygen();
