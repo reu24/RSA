@@ -1,5 +1,7 @@
-use rand_aes;
-use rand_aes::{Aes128Ctr64, Random};
+use rand::prelude::*;
+use rand_chacha;
+use rand_chacha::rand_core::RngCore;
+use rand_chacha::ChaCha12Rng;
 use std::io;
 
 const MIN_LENGTH: i32 = 700;
@@ -7,11 +9,13 @@ const MIN_PRIME: i16 = 46; // ceil(sqrt(2048))
 
 // RSA 2048 implementation :)
 fn main() {
+    let mut rng = ChaCha12Rng::from_os_rng();
+    
     loop {
         let command = get_input("\n\nCommand [keygen, encode, decode]");
 
         if (command == "keygen") {
-            keygen();
+            keygen(&mut rng);
         }
         else if (command == "encode") {
             encode(&get_input("Message"), &get_input("Public Key"));
@@ -48,11 +52,16 @@ fn is_prime(n: i32) -> bool {
     true
 }
 
-fn random_prime() -> i32 {
-    let prng = Aes128Ctr64::from_entropy();
-    let mut number = prng.i16().abs();
+fn random_i16(rng: &mut ChaCha12Rng) -> i16 {
+    let mut number = rng.next_u32() as i64;
+    number -= u32::MAX as i64;
+    number as i16
+}
+
+fn random_prime(rng: &mut ChaCha12Rng) -> i32 {
+    let mut number = random_i16(rng).abs();
     while (number < MIN_PRIME || !is_prime(number as i32)) {
-        number = prng.i16().abs();
+        number = random_i16(rng).abs();
     }
     number as i32
 }
@@ -80,11 +89,10 @@ fn is_coprime(a: i32, b: i32) -> bool {
     coprime(b.abs(), a.abs()) == 1
 }
 
-fn random_coprime(number: i32) -> i32 {
-    let prng = Aes128Ctr64::from_entropy();
-    let mut result = prng.i16() as i32 % number;
+fn random_coprime(number: i32, rng: &mut ChaCha12Rng) -> i32 {
+    let mut result = random_i16(rng).abs() as i32 % number;
     while (result > MIN_LENGTH || !is_coprime(result, number)) {
-        result = prng.i32().abs() % number;
+        result = random_i16(rng).abs() as i32 % number;
     }
     result
 }
@@ -98,12 +106,12 @@ fn multiplicative_inverse(a: i32, m: i32) -> i32 {
     0
 }
 
-fn keygen() {
-    let p = random_prime();
-    let q = random_prime();
+fn keygen(rng: &mut ChaCha12Rng) {
+    let p = random_prime(rng);
+    let q = random_prime(rng);
     let n = p * q;
     let euler = (p - 1) * (q - 1);
-    let d = random_coprime(euler);
+    let d = random_coprime(euler, rng);
     let e = multiplicative_inverse(d, euler);
 
     println!("Public key:");
